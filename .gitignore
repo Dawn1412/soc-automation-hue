@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+config/settings.json
+config/state.json
+config/logs.json
+service-account.json
+*.log
+.env
+.streamlit/secrets.toml
