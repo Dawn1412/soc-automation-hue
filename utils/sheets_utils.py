@@ -4,6 +4,7 @@ Google Sheets utilities using gspread + service account or OAuth2
 import json
 from typing import Optional
 import re
+from pathlib import Path
 
 try:
     import gspread
