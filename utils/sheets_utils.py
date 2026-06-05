@@ -32,12 +32,29 @@ INDICATOR_TO_SHEET = {
 }
 
 
-def get_gspread_client(credentials_path: str):
-    """Create gspread client from service account JSON file."""
+def get_gspread_client(credentials_path: str = None):
+    """Create gspread client from Streamlit Secrets or service account JSON file."""
     if not GSPREAD_AVAILABLE:
-        raise ImportError("gspread not installed. Run: pip install gspread google-auth")
-    creds = Credentials.from_service_account_file(credentials_path, scopes=SCOPES)
-    return gspread.authorize(creds)
+        raise ImportError("gspread not installed.")
+    
+    # Thử đọc từ Streamlit Secrets trước
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets') and 'google_service_account' in st.secrets:
+            creds = Credentials.from_service_account_info(
+                dict(st.secrets["google_service_account"]),
+                scopes=SCOPES
+            )
+            return gspread.authorize(creds)
+    except Exception:
+        pass
+    
+    # Fallback: đọc từ file JSON (local)
+    if credentials_path and Path(credentials_path).exists():
+        creds = Credentials.from_service_account_file(credentials_path, scopes=SCOPES)
+        return gspread.authorize(creds)
+    
+    raise ValueError("Không tìm thấy thông tin xác thực Google!")
 
 
 def get_sheet_data(credentials_path: str, spreadsheet_id: str, sheet_name: str) -> list[dict]:
