@@ -23,12 +23,12 @@ SPREADSHEET_ID = "11A4TuYjE3iLU92IvYK3UlOclB2baOd7Yawd4LyGrsW8"
 # Mapping from indicator name -> sheet tab name
 INDICATOR_TO_SHEET = {
     "CSAT 1": "CSAT 1",
-    "Checklist lặp ≥ 3": "Checklist lặp",
-    "PTC ≥ 72h": "PTC",
-    "Checklist ≥24h": "Checklist 24h",
-    "Yêu Cầu RM": "Yêu Cầu RM",
-    "Yêu cầu khiếu nại": "Khiếu nại",
-    "Yêu cầu ≥48h": "YC 48h",
+    "Checklist lặp ≥ 3": "Checklist lặp ≥ 3",
+    "PTC ≥ 72h": "PTC ≥ 72h",
+    "Checklist ≥24h": "Checklist ≥24h",
+    "Yêu Cầu RM": "Suy hao cao yêu cầu huỷ",
+    "Nguyên nhân tồn TKM": "Nguyên nhân tồn TKM",
+    "Rời mạng CLDV": "Rời mạng CLDV",
 }
 
 
