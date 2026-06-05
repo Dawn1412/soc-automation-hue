@@ -63,7 +63,24 @@ def get_sheet_data(credentials_path: str, spreadsheet_id: str, sheet_name: str) 
     client = get_gspread_client(credentials_path)
     sh = client.open_by_key(spreadsheet_id)
     ws = sh.worksheet(sheet_name)
-    records = ws.get_all_records()
+    # Dung expected_headers de tranh loi duplicate
+    data = ws.get_all_values()
+    if not data:
+        return []
+    headers = []
+    seen = {}
+    for i, h in enumerate(data[0]):
+        h = h.strip() if h.strip() else f"Col_{i}"
+        if h in seen:
+            seen[h] += 1
+            h = f"{h}_{seen[h]}"
+        else:
+            seen[h] = 0
+        headers.append(h)
+    records = []
+    for row in data[1:]:
+        if any(cell.strip() for cell in row):
+            records.append(dict(zip(headers, row)))
     return records
 
 
