@@ -172,21 +172,21 @@ def build_email_html(
     for exp in explanations:
         if exp.get("rows"):
             headers = list(exp["rows"][0].keys())
-            # Chỉ lấy tối đa 4 cột quan trọng nhất
-            important_headers = [h for h in headers if not h.startswith("Col_")][:4]
-            if not important_headers:
-                important_headers = headers[:4]
+            # Lấy TẤT CẢ cột có tên thật (bỏ Col_x)
+            real_headers = [h for h in headers if not h.startswith("Col_")]
+            if not real_headers:
+                 real_headers = headers
 
             th_html = "".join(
                 f'<th style="padding:10px 14px; text-align:left; background:#C62828; color:white; font-size:12px; font-weight:600; white-space:nowrap;">{h}</th>'
-                for h in important_headers
+                for h in real_headers
             )
             td_rows = ""
-            for i, row in enumerate(exp["rows"][:15]):
+            for i, row in enumerate(exp["rows"][:20]):
                 bg = "#FFF9F9" if i % 2 == 0 else "#FFFFFF"
                 tds = "".join(
-                    f'<td style="padding:10px 14px; border-bottom:1px solid #F5E6E6; font-size:12px; color:#333; max-width:200px; word-wrap:break-word;">{str(list(row.values())[headers.index(h)] if h in headers else "")[:100]}</td>'
-                    for h in important_headers
+                    f'<td style="padding:10px 14px; border-bottom:1px solid #F5E6E6; font-size:12px; color:#333; word-wrap:break-word; max-width:250px;">{str(row.get(h,""))}</td>'
+                    for h in real_headers
                 )
                 td_rows += f'<tr style="background:{bg};">{tds}</tr>'
 
@@ -290,4 +290,4 @@ def build_email_html(
 </div>
 </body>
 </html>"""
-    return html
+    return html 
