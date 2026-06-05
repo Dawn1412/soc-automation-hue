@@ -151,71 +151,143 @@ def build_email_html(
     explanations: list[dict],
     original_body: str = "",
 ) -> str:
-    """Build HTML email body from collected explanations."""
     rows_html = ""
     for exp in explanations:
-        status = "✅" if exp["count"] > 0 else "⚠️"
+        status_icon = "✅" if exp["count"] > 0 else "⚠️"
+        status_color = "#27AE60" if exp["count"] > 0 else "#E67E22"
         rows_html += f"""
         <tr>
-            <td style="padding:10px 14px; border-bottom:1px solid #e2e8f0; font-weight:600; color:#c53030;">{exp['indicator']}</td>
-            <td style="padding:10px 14px; border-bottom:1px solid #e2e8f0;">{exp['sheet_name']}</td>
-            <td style="padding:10px 14px; border-bottom:1px solid #e2e8f0; text-align:center;">{exp['count']} dòng</td>
-            <td style="padding:10px 14px; border-bottom:1px solid #e2e8f0; text-align:center;">{status}</td>
-        </tr>
-        """
+            <td style="padding:12px 16px; border-bottom:1px solid #F0F0F0;">
+                <span style="display:inline-block; width:8px; height:8px; background:#E53935; border-radius:50%; margin-right:8px;"></span>
+                <strong style="color:#C62828;">{exp['indicator']}</strong>
+            </td>
+            <td style="padding:12px 16px; border-bottom:1px solid #F0F0F0; color:#555;">{exp['sheet_name']}</td>
+            <td style="padding:12px 16px; border-bottom:1px solid #F0F0F0; text-align:center;">
+                <span style="background:#EEF2FF; color:#3949AB; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600;">{exp['count']} dòng</span>
+            </td>
+            <td style="padding:12px 16px; border-bottom:1px solid #F0F0F0; text-align:center; color:{status_color}; font-size:16px;">{status_icon}</td>
+        </tr>"""
 
     detail_html = ""
     for exp in explanations:
-        if exp["rows"]:
-            detail_html += f"<h3 style='color:#c53030; margin:24px 0 10px;'>📋 {exp['indicator']}</h3>"
-            # Build mini table
-            if exp["rows"]:
-                headers = list(exp["rows"][0].keys())
-                th_html = "".join(f"<th style='padding:8px 12px; text-align:left; background:#f7fafc; border:1px solid #e2e8f0;'>{h}</th>" for h in headers)
-                td_rows = ""
-                for row in exp["rows"][:20]:  # max 20 rows
-                    tds = "".join(f"<td style='padding:8px 12px; border:1px solid #e2e8f0;'>{v}</td>" for v in row.values())
-                    td_rows += f"<tr>{tds}</tr>"
-                detail_html += f"""
-                <table style="border-collapse:collapse; width:100%; font-size:13px; margin-bottom:16px;">
-                    <thead><tr>{th_html}</tr></thead>
-                    <tbody>{td_rows}</tbody>
-                </table>"""
+        if exp.get("rows"):
+            headers = list(exp["rows"][0].keys())
+            # Chỉ lấy tối đa 4 cột quan trọng nhất
+            important_headers = [h for h in headers if not h.startswith("Col_")][:4]
+            if not important_headers:
+                important_headers = headers[:4]
+
+            th_html = "".join(
+                f'<th style="padding:10px 14px; text-align:left; background:#C62828; color:white; font-size:12px; font-weight:600; white-space:nowrap;">{h}</th>'
+                for h in important_headers
+            )
+            td_rows = ""
+            for i, row in enumerate(exp["rows"][:15]):
+                bg = "#FFF9F9" if i % 2 == 0 else "#FFFFFF"
+                tds = "".join(
+                    f'<td style="padding:10px 14px; border-bottom:1px solid #F5E6E6; font-size:12px; color:#333; max-width:200px; word-wrap:break-word;">{str(list(row.values())[headers.index(h)] if h in headers else "")[:100]}</td>'
+                    for h in important_headers
+                )
+                td_rows += f'<tr style="background:{bg};">{tds}</tr>'
+
+            detail_html += f"""
+            <div style="margin-bottom:28px;">
+                <div style="display:flex; align-items:center; margin-bottom:12px;">
+                    <div style="width:4px; height:20px; background:#C62828; border-radius:2px; margin-right:10px;"></div>
+                    <h3 style="margin:0; font-size:15px; color:#C62828; font-weight:700;">{exp['indicator']}</h3>
+                    <span style="margin-left:auto; background:#EEF2FF; color:#3949AB; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600;">{exp['count']} bản ghi</span>
+                </div>
+                <div style="overflow-x:auto; border-radius:8px; border:1px solid #F5E6E6;">
+                    <table style="border-collapse:collapse; width:100%; min-width:400px;">
+                        <thead><tr>{th_html}</tr></thead>
+                        <tbody>{td_rows}</tbody>
+                    </table>
+                </div>
+            </div>"""
         else:
-            detail_html += f"<p style='color:#718096;'>⚠️ Chưa có giải trình cho: <strong>{exp['indicator']}</strong></p>"
+            detail_html += f"""
+            <div style="margin-bottom:20px; padding:14px 18px; background:#FFF8E1; border-left:4px solid #FFC107; border-radius:4px;">
+                <span style="color:#F57F17; font-size:13px;">⚠️ Chưa có dữ liệu giải trình cho: <strong>{exp['indicator']}</strong></span>
+            </div>"""
 
-    html = f"""
-    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width:800px; color:#2d3748;">
-        <div style="background:#c53030; color:white; padding:20px 28px; border-radius:6px 6px 0 0;">
-            <h2 style="margin:0; font-size:1.3rem;">📊 Báo cáo Giải trình Chỉ số Đỏ</h2>
-            <p style="margin:6px 0 0; opacity:0.85; font-size:0.9rem;">Chi nhánh {branch} – Ngày báo cáo: {report_date}</p>
-        </div>
-        <div style="background:#fff8f8; border:1px solid #fed7d7; border-top:none; padding:20px 28px; border-radius:0 0 6px 6px;">
-            <p>Kính gửi SOC Canh Bao,</p>
-            <p>Chi nhánh <strong>{branch}</strong> xin gửi giải trình về các chỉ số đỏ trong ngày <strong>{report_date}</strong> như sau:</p>
+    total_records = sum(e["count"] for e in explanations)
+    filled = sum(1 for e in explanations if e["count"] > 0)
 
-            <table style="width:100%; border-collapse:collapse; margin:16px 0; font-size:13px;">
-                <thead>
-                    <tr style="background:#fff5f5;">
-                        <th style="padding:10px 14px; text-align:left; border-bottom:2px solid #c53030; color:#c53030;">Chỉ số</th>
-                        <th style="padding:10px 14px; text-align:left; border-bottom:2px solid #c53030; color:#c53030;">Tab Sheet</th>
-                        <th style="padding:10px 14px; text-align:center; border-bottom:2px solid #c53030; color:#c53030;">Số dòng GS</th>
-                        <th style="padding:10px 14px; text-align:center; border-bottom:2px solid #c53030; color:#c53030;">Trạng thái</th>
-                    </tr>
-                </thead>
-                <tbody>{rows_html}</tbody>
-            </table>
+    html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0; padding:0; background:#F4F6F9; font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:680px; margin:24px auto; background:white; border-radius:12px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.08);">
 
-            <hr style="border:none; border-top:1px solid #fed7d7; margin:24px 0;" />
-            <h3 style="color:#2d3748; margin-bottom:12px;">Chi tiết giải trình:</h3>
-            {detail_html}
-
-            <hr style="border:none; border-top:1px solid #fed7d7; margin:24px 0;" />
-            <p style="color:#718096; font-size:12px;">
-                Email này được tạo tự động bởi hệ thống SOC Automation – Chi nhánh {branch}.<br>
-                Thời gian gửi: {__import__('datetime').datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
-            </p>
-        </div>
+  <!-- HEADER -->
+  <div style="background:linear-gradient(135deg, #C62828 0%, #8B0000 100%); padding:28px 32px;">
+    <div style="display:flex; align-items:center; margin-bottom:8px;">
+      <div style="width:40px; height:40px; background:rgba(255,255,255,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; margin-right:14px; font-size:20px;">📊</div>
+      <div>
+        <h1 style="margin:0; color:white; font-size:20px; font-weight:700; letter-spacing:-0.3px;">Báo cáo Giải trình Chỉ số Đỏ</h1>
+        <p style="margin:4px 0 0; color:rgba(255,255,255,0.75); font-size:13px;">Chi nhánh {branch} &nbsp;·&nbsp; Ngày báo cáo: {report_date}</p>
+      </div>
     </div>
-    """
+  </div>
+
+  <!-- STATS BAR -->
+  <div style="background:#FFF5F5; padding:16px 32px; border-bottom:1px solid #F5E6E6; display:flex; gap:24px;">
+    <div style="text-align:center;">
+      <div style="font-size:22px; font-weight:700; color:#C62828;">{len(explanations)}</div>
+      <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.5px;">Chỉ số đỏ</div>
+    </div>
+    <div style="width:1px; background:#F5E6E6;"></div>
+    <div style="text-align:center;">
+      <div style="font-size:22px; font-weight:700; color:#27AE60;">{filled}</div>
+      <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.5px;">Đã giải trình</div>
+    </div>
+    <div style="width:1px; background:#F5E6E6;"></div>
+    <div style="text-align:center;">
+      <div style="font-size:22px; font-weight:700; color:#3949AB;">{total_records}</div>
+      <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.5px;">Tổng bản ghi</div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div style="padding:28px 32px;">
+    <p style="margin:0 0 20px; color:#444; font-size:14px; line-height:1.6;">
+      Kính gửi <strong>SOC Canh Bao</strong>,<br>
+      Chi nhánh <strong>{branch}</strong> xin gửi giải trình về các chỉ số đỏ trong ngày <strong>{report_date}</strong>:
+    </p>
+
+    <!-- SUMMARY TABLE -->
+    <div style="border-radius:10px; overflow:hidden; border:1px solid #F5E6E6; margin-bottom:28px;">
+      <table style="border-collapse:collapse; width:100%;">
+        <thead>
+          <tr style="background:#FFF5F5;">
+            <th style="padding:12px 16px; text-align:left; font-size:12px; color:#888; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; border-bottom:2px solid #F5E6E6;">Chỉ số</th>
+            <th style="padding:12px 16px; text-align:left; font-size:12px; color:#888; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; border-bottom:2px solid #F5E6E6;">Tab Sheet</th>
+            <th style="padding:12px 16px; text-align:center; font-size:12px; color:#888; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; border-bottom:2px solid #F5E6E6;">Số dòng</th>
+            <th style="padding:12px 16px; text-align:center; font-size:12px; color:#888; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; border-bottom:2px solid #F5E6E6;">Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody>{rows_html}</tbody>
+      </table>
+    </div>
+
+    <!-- DIVIDER -->
+    <div style="border-top:2px dashed #F5E6E6; margin:24px 0;"></div>
+    <h2 style="margin:0 0 20px; font-size:16px; color:#333; font-weight:700;">📋 Chi tiết giải trình</h2>
+
+    {detail_html}
+  </div>
+
+  <!-- FOOTER -->
+  <div style="background:#F9FAFB; padding:16px 32px; border-top:1px solid #EEEEEE; text-align:center;">
+    <p style="margin:0; font-size:11px; color:#AAAAAA;">
+      Email tự động · SOC Automation · Chi nhánh {branch} · {__import__('datetime').datetime.now().strftime('%d/%m/%Y %H:%M')}
+    </p>
+  </div>
+
+</div>
+</body>
+</html>"""
     return html
