@@ -169,9 +169,16 @@ def send_reply_email(
     body_html: str,
     cc_list: list = None,
     reply_to_msg_id: str = None,
+    excel_attachment: bytes = None,
+    excel_filename: str = "giai_trinh.xlsx",
 ):
-    """Send reply email via SMTP."""
-    msg = MIMEMultipart("alternative")
+    """Send reply email via SMTP with optional Excel attachment."""
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.mime.base import MIMEBase
+    from email import encoders
+
+    msg = MIMEMultipart("mixed")
     msg["Subject"] = subject
     msg["From"] = address
     msg["To"] = to_address
@@ -181,15 +188,23 @@ def send_reply_email(
         msg["In-Reply-To"] = reply_to_msg_id
         msg["References"] = reply_to_msg_id
 
-    part = MIMEText(body_html, "html", "utf-8")
-    msg.attach(part)
+    # HTML body
+    alt = MIMEMultipart("alternative")
+    alt.attach(MIMEText(body_html, "html", "utf-8"))
+    msg.attach(alt)
+
+    # Excel attachment
+    if excel_attachment:
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(excel_attachment)
+        encoders.encode_base64(part)
+        part.add_header("Content-Disposition", f'attachment; filename="{excel_filename}"')
+        msg.attach(part)
 
     recipients = [to_address] + (cc_list or [])
-
     with smtplib.SMTP_SSL(smtp_server, 465) as server:
         server.login(address, password)
         server.sendmail(address, recipients, msg.as_string())
-
     return True
 
 

@@ -120,6 +120,13 @@ def render(config: dict):
             if is_send:
                 with st.spinner("Đang gửi email..."):
                     try:
+                        # Tạo file Excel đính kèm
+                        excel_data = None
+                        try:
+                            from utils.sheets_utils import build_excel_attachment
+                            excel_data = build_excel_attachment(explanations)
+                        except:
+                            pass
                         from utils.email_utils import send_reply_email
                         send_reply_email(
                             smtp_server=email_cfg.get("smtp_server", "smtp.gmail.com"),
@@ -129,6 +136,8 @@ def render(config: dict):
                             subject=st.session_state.get("send_subject", subject_default),
                             body_html=html_body,
                             cc_list=st.session_state.get("send_cc", []),
+                            excel_attachment=excel_data,
+                            excel_filename=f"GiaiTrinh_HUE_{state.get('report_date','').replace('/','')}.xlsx",
                         )
                         # Update state
                         state["last_email_sent"] = datetime.now().strftime("%d/%m/%Y %H:%M")

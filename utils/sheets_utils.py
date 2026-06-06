@@ -63,7 +63,6 @@ def get_sheet_data(credentials_path: str, spreadsheet_id: str, sheet_name: str) 
     client = get_gspread_client(credentials_path)
     sh = client.open_by_key(spreadsheet_id)
     ws = sh.worksheet(sheet_name)
-    # Dung expected_headers de tranh loi duplicate
     data = ws.get_all_values()
     if not data:
         return []
@@ -97,14 +96,9 @@ def extract_explanation_from_sheet(
     indicator: str,
     report_date: str = None,
 ) -> dict:
-    """
-    Extract explanation/giải trình data from a specific sheet for a given indicator.
-    Returns dict with: sheet_name, rows, summary
-    """
     sheet_name = INDICATOR_TO_SHEET.get(indicator, indicator)
     try:
         records = get_sheet_data(credentials_path, spreadsheet_id, sheet_name)
-        # Filter by date if provided
         if report_date and records:
             date_filtered = []
             for row in records:
@@ -172,10 +166,9 @@ def build_email_html(
     for exp in explanations:
         if exp.get("rows"):
             headers = list(exp["rows"][0].keys())
-            # Lấy TẤT CẢ cột có tên thật (bỏ Col_x)
             real_headers = [h for h in headers if not h.startswith("Col_")]
             if not real_headers:
-                 real_headers = headers
+                real_headers = headers
 
             th_html = "".join(
                 f'<th style="padding:10px 14px; text-align:left; background:#C62828; color:white; font-size:12px; font-weight:600; white-space:nowrap;">{h}</th>'
@@ -234,21 +227,25 @@ def build_email_html(
   </div>
 
   <!-- STATS BAR -->
-  <div style="background:#FFF5F5; padding:16px 32px; border-bottom:1px solid #F5E6E6; display:flex; gap:24px;">
-    <div style="text-align:center;">
-      <div style="font-size:22px; font-weight:700; color:#C62828;">{len(explanations)}</div>
-      <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.5px;">Chỉ số đỏ</div>
-    </div>
-    <div style="width:1px; background:#F5E6E6;"></div>
-    <div style="text-align:center;">
-      <div style="font-size:22px; font-weight:700; color:#27AE60;">{filled}</div>
-      <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.5px;">Đã giải trình</div>
-    </div>
-    <div style="width:1px; background:#F5E6E6;"></div>
-    <div style="text-align:center;">
-      <div style="font-size:22px; font-weight:700; color:#3949AB;">{total_records}</div>
-      <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.5px;">Tổng bản ghi</div>
-    </div>
+  <div style="background:#FFF5F5; padding:16px 32px; border-bottom:1px solid #F5E6E6;">
+    <table style="width:100%; border-collapse:collapse;">
+      <tr>
+        <td style="text-align:center; padding:8px;">
+          <div style="font-size:22px; font-weight:700; color:#C62828;">{len(explanations)}</div>
+          <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.5px;">Chỉ số đỏ</div>
+        </td>
+        <td style="width:1px; background:#F5E6E6;"></td>
+        <td style="text-align:center; padding:8px;">
+          <div style="font-size:22px; font-weight:700; color:#27AE60;">{filled}</div>
+          <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.5px;">Đã giải trình</div>
+        </td>
+        <td style="width:1px; background:#F5E6E6;"></td>
+        <td style="text-align:center; padding:8px;">
+          <div style="font-size:22px; font-weight:700; color:#3949AB;">{total_records}</div>
+          <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.5px;">Tổng bản ghi</div>
+        </td>
+      </tr>
+    </table>
   </div>
 
   <!-- BODY -->
@@ -273,9 +270,16 @@ def build_email_html(
       </table>
     </div>
 
+    <!-- NOTE EXCEL -->
+    <div style="padding:12px 16px; background:#EEF2FF; border-radius:8px; margin-bottom:24px; border-left:4px solid #3949AB;">
+      <p style="margin:0; font-size:13px; color:#3949AB;">
+        📎 <strong>File Excel đính kèm</strong> chứa đầy đủ dữ liệu giải trình chi tiết cho tất cả chỉ số.
+      </p>
+    </div>
+
     <!-- DIVIDER -->
     <div style="border-top:2px dashed #F5E6E6; margin:24px 0;"></div>
-    <h2 style="margin:0 0 20px; font-size:16px; color:#333; font-weight:700;">📋 Chi tiết giải trình</h2>
+    <h2 style="margin:0 0 20px; font-size:16px; color:#333; font-weight:700;">📋 Chi tiết giải trình (tóm tắt)</h2>
 
     {detail_html}
   </div>
@@ -290,4 +294,111 @@ def build_email_html(
 </div>
 </body>
 </html>"""
-    return html 
+    return html
+
+
+def build_excel_attachment(explanations: list[dict]) -> bytes:
+    """Tạo file Excel đính kèm từ dữ liệu giải trình - đầy đủ 100% dữ liệu."""
+    try:
+        import pandas as pd
+        from io import BytesIO
+        import openpyxl
+        from openpyxl.styles import PatternFill, Font, Alignment
+
+        output = BytesIO()
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+
+        red_fill = PatternFill(start_color="C62828", end_color="C62828", fill_type="solid")
+        light_red_fill = PatternFill(start_color="FFF5F5", end_color="FFF5F5", fill_type="solid")
+        white_fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=11, name="Segoe UI")
+        normal_font = Font(size=10, name="Segoe UI")
+        center_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        left_align = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+        for exp in explanations:
+            if not exp.get("rows"):
+                continue
+
+            # Tên sheet tối đa 31 ký tự
+            sheet_name = exp["sheet_name"][:31]
+            ws = wb.create_sheet(title=sheet_name)
+
+            df = pd.DataFrame(exp["rows"])
+            # Giữ TẤT CẢ cột, chỉ đổi tên Col_x thành trống
+            real_cols = [c for c in df.columns if not c.startswith("Col_")]
+            if real_cols:
+                df = df[real_cols]
+
+            # Header row
+            for col_idx, col_name in enumerate(df.columns, 1):
+                cell = ws.cell(row=1, column=col_idx, value=col_name)
+                cell.fill = red_fill
+                cell.font = header_font
+                cell.alignment = center_align
+                ws.row_dimensions[1].height = 30
+
+            # Data rows - TẤT CẢ dòng, không giới hạn
+            for row_idx, row_data in enumerate(df.itertuples(index=False), 2):
+                fill = light_red_fill if row_idx % 2 == 0 else white_fill
+                for col_idx, value in enumerate(row_data, 1):
+                    cell = ws.cell(row=row_idx, column=col_idx, value=str(value) if value else "")
+                    cell.fill = fill
+                    cell.font = normal_font
+                    cell.alignment = left_align
+                ws.row_dimensions[row_idx].height = 20
+
+            # Auto column width
+            for col in ws.columns:
+                max_length = 0
+                col_letter = col[0].column_letter
+                for cell in col:
+                    try:
+                        if cell.value:
+                            max_length = max(max_length, len(str(cell.value)))
+                    except Exception:
+                        pass
+                ws.column_dimensions[col_letter].width = min(max_length + 4, 50)
+
+            # Freeze header row
+            ws.freeze_panes = "A2"
+
+        # Sheet tổng hợp
+        summary_ws = wb.create_sheet(title="Tổng hợp", index=0)
+        summary_ws["A1"] = "Báo cáo Giải trình Chỉ số Đỏ"
+        summary_ws["A1"].font = Font(bold=True, size=14, color="C62828", name="Segoe UI")
+        summary_ws["A1"].alignment = center_align
+        summary_ws.merge_cells("A1:D1")
+        summary_ws.row_dimensions[1].height = 35
+
+        headers_summary = ["Chỉ số", "Tab Sheet", "Số bản ghi", "Trạng thái"]
+        for col_idx, h in enumerate(headers_summary, 1):
+            cell = summary_ws.cell(row=2, column=col_idx, value=h)
+            cell.fill = red_fill
+            cell.font = header_font
+            cell.alignment = center_align
+
+        for row_idx, exp in enumerate(explanations, 3):
+            fill = light_red_fill if row_idx % 2 == 0 else white_fill
+            summary_ws.cell(row=row_idx, column=1, value=exp["indicator"]).fill = fill
+            summary_ws.cell(row=row_idx, column=2, value=exp["sheet_name"]).fill = fill
+            summary_ws.cell(row=row_idx, column=3, value=exp["count"]).fill = fill
+            status = "✅ Đã giải trình" if exp["count"] > 0 else "⚠️ Chưa có dữ liệu"
+            summary_ws.cell(row=row_idx, column=4, value=status).fill = fill
+
+        summary_ws.column_dimensions["A"].width = 25
+        summary_ws.column_dimensions["B"].width = 30
+        summary_ws.column_dimensions["C"].width = 15
+        summary_ws.column_dimensions["D"].width = 20
+
+        if not wb.sheetnames:
+            ws = wb.create_sheet("Giai trinh")
+            ws["A1"] = "Chưa có dữ liệu"
+
+        wb.save(output)
+        return output.getvalue()
+
+    except Exception as e:
+        print(f"Lỗi tạo Excel: {e}")
+        return None
