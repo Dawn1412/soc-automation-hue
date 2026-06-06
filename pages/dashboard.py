@@ -6,20 +6,33 @@ from pathlib import Path
 
 STATE_FILE = Path(__file__).parent.parent / "config" / "state.json"
 
+DEFAULT_STATE = {
+    "last_scan": None,
+    "last_email_sent": None,
+    "red_indicators": [],
+    "report_date": None,
+    "deadline": None,
+    "status": "idle",
+    "total_scans": 0,
+    "total_emails_sent": 0,
+}
+
 def load_state():
     if STATE_FILE.exists():
-        with open(STATE_FILE) as f:
-            return json.load(f)
-    return {
-        "last_scan": None,
-        "last_email_sent": None,
-        "red_indicators": [],
-        "report_date": None,
-        "deadline": None,
-        "status": "idle",
-        "total_scans": 0,
-        "total_emails_sent": 0,
-    }
+        try:
+            with open(STATE_FILE, encoding="utf-8") as f:
+                content = f.read().strip()
+            if not content:
+                return DEFAULT_STATE.copy()
+            return json.loads(content)
+        except Exception:
+            # File corrupt → xoá và trả về default
+            try:
+                STATE_FILE.unlink()
+            except Exception:
+                pass
+            return DEFAULT_STATE.copy()
+    return DEFAULT_STATE.copy()
 
 def render(config: dict):
     state = load_state()
@@ -34,7 +47,6 @@ def render(config: dict):
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Status bar ──
     col1, col2, col3 = st.columns([2, 1, 1])
     with col1:
         now = datetime.now()
@@ -67,7 +79,6 @@ def render(config: dict):
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── Metrics ──
     red_count = len(state.get("red_indicators", []))
 
     st.markdown(f"""
@@ -95,7 +106,6 @@ def render(config: dict):
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Main content ──
     col_a, col_b = st.columns([3, 2])
 
     with col_a:
